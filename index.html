@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<title>Sound test</title>
+<style>
+div.confident { color: black; }
+div.vague { color: lightgrey; }
+</style>
+
+</head>
+<body>
+<script src="js/pitchdetect.js"></script>
+
+<button onclick="this.innerText = togglePlayback()">start</button>
+
+<div id="detected" class="vague">
+<div>Pitch: <span id="pitch">[undefined]</span>Hz</div>
+<div>Note: <span id="note">[undefined]</span> (<span id="note_bend">[undefined]</span>% off)</div>
+<div>Confidence: <span id="confidence">[undefined]</span>Hz</div>
+</div>
+<button onclick="updatePitch(0);">sample</button>
+
+</body>
+</html>
