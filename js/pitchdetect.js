@@ -12,7 +12,7 @@ var detectorElem,
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
-	request.open("GET", "../sounds/whistling2.ogg", true);
+	request.open("GET", "../sounds/whistling3.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
@@ -49,8 +49,37 @@ window.onload = function() {
 		};
 	  	reader.readAsArrayBuffer(e.dataTransfer.files[0]);
 	  	return false;
-	};	
+	};
 
+
+
+}
+
+        function error() {
+            alert('Stream generation failed.');
+        }
+
+        function getUserMedia(dictionary, callback) {
+            try {
+                navigator.webkitGetUserMedia(dictionary, callback, error);
+            } catch (e) {
+                alert('webkitGetUserMedia threw exception :' + e);
+            }
+        }
+
+        function gotStream(stream) {
+            // Create an AudioNode from the stream.
+            var mediaStreamSource = audioContext.createMediaStreamSource(stream);
+
+            // Connect it to the destination.
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    mediaStreamSource.connect( analyser );
+    updatePitch();
+}
+
+function toggleLiveInput() {
+    getUserMedia({audio:true}, gotStream);
 }
 
 function togglePlayback() {
@@ -76,6 +105,7 @@ function togglePlayback() {
     analyser.connect( audioContext.destination );
     sourceNode.noteOn( now );
     isPlaying = true;
+    isLiveInput = false;
     updatePitch();
 
     return "stop";
@@ -146,12 +176,17 @@ function updatePitch( time ) {
 	// find the first point
 	var last_zero = findNextPositiveZeroCrossing( 0 );
 
+	var n=0;
 	// keep finding points, adding cycle lengths to array
 	while ( last_zero != -1) {
 		var next_zero = findNextPositiveZeroCrossing( last_zero + 1 );
 		if (next_zero > -1)
 			cycles.push( next_zero - last_zero );
 		last_zero = next_zero;
+
+		n++;
+		if (n>1000)
+			break;
 	}
 
 	// 1?: average the array
