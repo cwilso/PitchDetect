@@ -55,26 +55,36 @@ window.onload = function() {
 
 }
 
-        function error() {
-            alert('Stream generation failed.');
-        }
+function convertToMono( input ) {
+    var splitter = audioContext.createChannelSplitter(2);
+    var merger = audioContext.createChannelMerger(2);
 
-        function getUserMedia(dictionary, callback) {
-            try {
-                navigator.webkitGetUserMedia(dictionary, callback, error);
-            } catch (e) {
-                alert('webkitGetUserMedia threw exception :' + e);
-            }
-        }
+    input.connect( splitter );
+    splitter.connect( merger, 0, 0 );
+    splitter.connect( merger, 0, 1 );
+    return merger;
+}
 
-        function gotStream(stream) {
-            // Create an AudioNode from the stream.
-            var mediaStreamSource = audioContext.createMediaStreamSource(stream);
+function error() {
+    alert('Stream generation failed.');
+}
 
-            // Connect it to the destination.
+function getUserMedia(dictionary, callback) {
+    try {
+        navigator.webkitGetUserMedia(dictionary, callback, error);
+    } catch (e) {
+        alert('webkitGetUserMedia threw exception :' + e);
+    }
+}
+
+function gotStream(stream) {
+    // Create an AudioNode from the stream.
+    var mediaStreamSource = audioContext.createMediaStreamSource(stream);
+
+    // Connect it to the destination.
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
-    mediaStreamSource.connect( analyser );
+    convertToMono( mediaStreamSource ).connect( analyser );
     updatePitch();
 }
 
