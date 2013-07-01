@@ -1,4 +1,4 @@
-var audioContext = new webkitAudioContext();
+var audioContext = new AudioContext();
 var isPlaying = false;
 var sourceNode = null;
 var analyser = null;
@@ -71,9 +71,11 @@ function error() {
 
 function getUserMedia(dictionary, callback) {
     try {
-        navigator.webkitGetUserMedia(dictionary, callback, error);
+        if (!navigator.getUserMedia)
+        	navigator.getUserMedia = navigator.webkitGetUserMedia;
+        navigator.getUserMedia(dictionary, callback, error);
     } catch (e) {
-        alert('webkitGetUserMedia threw exception :' + e);
+        alert('getUserMedia threw exception :' + e);
     }
 }
 
@@ -97,11 +99,13 @@ function togglePlayback() {
 
     if (isPlaying) {
         //stop playing and return
-        sourceNode.noteOff( now );
+        sourceNode.stop( now );
         sourceNode = null;
         analyser = null;
         isPlaying = false;
-        webkitCancelAnimationFrame( rafID );
+		if (!window.cancelAnimationFrame)
+			window.cancelAnimationFrame = window.webkitCancelAnimationFrame;
+        window.cancelAnimationFrame( rafID );
         return "start";
     }
 
@@ -113,7 +117,7 @@ function togglePlayback() {
     analyser.fftSize = 2048;
     sourceNode.connect( analyser );
     analyser.connect( audioContext.destination );
-    sourceNode.noteOn( now );
+    sourceNode.start( now );
     isPlaying = true;
     isLiveInput = false;
     updatePitch();
@@ -252,5 +256,7 @@ function updatePitch( time ) {
 		}
 	}
 
-	rafID = window.webkitRequestAnimationFrame( updatePitch );
+	if (!window.requestAnimationFrame)
+		window.requestAnimationFrame = window.webkitRequestAnimationFrame;
+	rafID = window.requestAnimationFrame( updatePitch );
 }
