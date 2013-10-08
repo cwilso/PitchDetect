@@ -55,16 +55,6 @@ window.onload = function() {
 
 }
 
-function convertToMono( input ) {
-    var splitter = audioContext.createChannelSplitter(2);
-    var merger = audioContext.createChannelMerger(2);
-
-    input.connect( splitter );
-    splitter.connect( merger, 0, 0 );
-    splitter.connect( merger, 0, 1 );
-    return merger;
-}
-
 function error() {
     alert('Stream generation failed.');
 }
@@ -86,7 +76,7 @@ function gotStream(stream) {
     // Connect it to the destination.
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
-    convertToMono( mediaStreamSource ).connect( analyser );
+    mediaStreamSource.connect( analyser );
     updatePitch();
 }
 
