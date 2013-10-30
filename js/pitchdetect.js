@@ -61,8 +61,10 @@ function error() {
 
 function getUserMedia(dictionary, callback) {
     try {
-        if (!navigator.getUserMedia)
-        	navigator.getUserMedia = navigator.webkitGetUserMedia;
+        navigator.getUserMedia = 
+        	navigator.getUserMedia ||
+        	navigator.webkitGetUserMedia ||
+        	navigator.mozGetUserMedia;
         navigator.getUserMedia(dictionary, callback, error);
     } catch (e) {
         alert('getUserMedia threw exception :' + e);
@@ -230,19 +232,19 @@ function updatePitch( time ) {
 		detuneElem.className = "";
 		detuneAmount.innerText = "--";
  	} else {
-	 	pitchElem.innerText = Math.floor( pitch );
+	 	pitchElem.innerHTML = Math.floor( pitch );
 	 	var note =  noteFromPitch( pitch );
-		noteElem.innerText = noteStrings[note%12];
+		noteElem.innerHTML = noteStrings[note%12];
 		var detune = centsOffFromPitch( pitch, note );
 		if (detune == 0 ) {
 			detuneElem.className = "";
-			detuneAmount.innerText = "--";
+			detuneAmount.innerHTML = "--";
 		} else {
 			if (detune < 0)
 				detuneElem.className = "flat";
 			else
 				detuneElem.className = "sharp";
-			detuneAmount.innerText = Math.abs( detune );
+			detuneAmount.innerHTML = Math.abs( detune );
 		}
 	}
 
