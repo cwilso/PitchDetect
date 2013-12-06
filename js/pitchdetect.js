@@ -174,6 +174,8 @@ function centsOffFromPitch( frequency, note ) {
 	return Math.floor( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
 }
 
+// this is a float version of the algorithm below - but it's not currently used.
+/*
 function autoCorrelateFloat( buf, sampleRate ) {
 	var MIN_SAMPLES = 4;	// corresponds to an 11kHz signal
 	var MAX_SAMPLES = 1000; // corresponds to a 44Hz signal
@@ -206,6 +208,7 @@ function autoCorrelateFloat( buf, sampleRate ) {
 	}
 //	var best_frequency = sampleRate/best_offset;
 }
+*/
 
 function autoCorrelate( buf, sampleRate ) {
 	var MIN_SAMPLES = 4;	// corresponds to an 11kHz signal
@@ -236,8 +239,8 @@ function autoCorrelate( buf, sampleRate ) {
 			best_offset = offset;
 		}
 	}
-	if ((rms>0.1)&&(best_correlation > 0.1)) {
-		console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
+	if ((rms>0.01)&&(best_correlation > 0.01)) {
+		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
 		return sampleRate/best_offset;
 	}
 	return -1;
@@ -247,6 +250,9 @@ function autoCorrelate( buf, sampleRate ) {
 function updatePitch( time ) {
 	var cycles = new Array;
 	analyser.getByteTimeDomainData( buf );
+
+/*
+// old zero-crossing code
 
 	var i=0;
 	// find the first point
@@ -281,6 +287,7 @@ function updatePitch( time ) {
 
 // confidence = num_cycles / num_possible_cycles = num_cycles / (audioContext.sampleRate/)
 	var confidence = (num_cycles ? ((num_cycles/(pitch * buflen / audioContext.sampleRate)) * 100) : 0);
+*/
 
 /*
 	console.log( 
@@ -294,16 +301,20 @@ function updatePitch( time ) {
 	// possible other approach to confidence: sort the array, take the median; go through the array and compute the average deviation
 	var ac = autoCorrelate( buf, audioContext.sampleRate );
 
- 	detectorElem.className = (confidence>50)?"confident":"vague";
+// 	detectorElem.className = (confidence>50)?"confident":"vague";
+
 	// TODO: Paint confidence meter on canvasElem here.
 
- 	if (num_cycles == 0) {
+ 	if (ac == -1) {
+ 		detectorElem.className = "vague";
 	 	pitchElem.innerText = "--";
 		noteElem.innerText = "-";
 		detuneElem.className = "";
 		detuneAmount.innerText = "--";
  	} else {
-	 	pitchElem.innerText = Math.floor( pitch ) + "Hz : " + Math.floor(ac) ;
+	 	detectorElem.className = "confident";
+	 	pitch = ac;
+	 	pitchElem.innerText = Math.floor( pitch ) ;
 	 	var note =  noteFromPitch( pitch );
 		noteElem.innerHTML = noteStrings[note%12];
 		var detune = centsOffFromPitch( pitch, note );

@@ -1,6 +1,6 @@
-# Naive simple pitch detection
+# Simple pitch detection
 
-I whipped this app up to start experimenting with pitch detection, and also to test live audio input.  It performs a naive (zero-crossing based) pitch detection algorithm in realtime.  It works best today with whistling (which has a clear, simple waveform); it needs some severe help with more complex waveforms, even like guitar.  I'll get back to this eventually.  :)  There are much better tuners out there right now - like [Craig Spence's work](http://phenomnomnominal.github.com/).
+I whipped this app up to start experimenting with pitch detection, and also to test live audio input.  It used to perform a naive (zero-crossing based) pitch detection algorithm; now it uses a naively-implemented auto-correlation algorithm in realtime, so it should work well with most monophonic waveforms (although strong harmonics will throw it off a bit).  It works well with whistling (which has a clear, simple waveform); it also works pretty well to tune my guitar.
 
 Check it out, feel free to fork, submit pull requests, etc.
 
