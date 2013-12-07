@@ -72,6 +72,7 @@ function getUserMedia(dictionary, callback) {
 }
 
 function gotStream(stream) {
+    URL.createObjectURL(stream);
     // Create an AudioNode from the stream.
     var mediaStreamSource = audioContext.createMediaStreamSource(stream);
 
