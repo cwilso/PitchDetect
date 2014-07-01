@@ -3,8 +3,10 @@ var isPlaying = false;
 var sourceNode = null;
 var analyser = null;
 var theBuffer = null;
+var DEBUGCANVAS = null;
 var detectorElem, 
 	canvasElem,
+	waveCanvas,
 	pitchElem,
 	noteElem,
 	detuneElem,
@@ -23,6 +25,12 @@ window.onload = function() {
 
 	detectorElem = document.getElementById( "detector" );
 	canvasElem = document.getElementById( "output" );
+	DEBUGCANVAS = document.getElementById( "waveform" );
+	if (DEBUGCANVAS) {
+		waveCanvas = DEBUGCANVAS.getContext("2d");
+		waveCanvas.strokeStyle = "black";
+		waveCanvas.lineWidth = 1;
+	}
 	pitchElem = document.getElementById( "pitch" );
 	noteElem = document.getElementById( "note" );
 	detuneElem = document.getElementById( "detune" );
@@ -82,7 +90,43 @@ function gotStream(stream) {
     updatePitch();
 }
 
+function toggleOscillator() {
+    if (isPlaying) {
+        //stop playing and return
+        sourceNode.stop( now );
+        sourceNode = null;
+        analyser = null;
+        isPlaying = false;
+		if (!window.cancelAnimationFrame)
+			window.cancelAnimationFrame = window.webkitCancelAnimationFrame;
+        window.cancelAnimationFrame( rafID );
+        return "play oscillator";
+    }
+    sourceNode = audioContext.createOscillator();
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    sourceNode.connect( analyser );
+    analyser.connect( audioContext.destination );
+    sourceNode.start(0);
+    isPlaying = true;
+    isLiveInput = false;
+    updatePitch();
+
+    return "stop";
+}
+
 function toggleLiveInput() {
+    if (isPlaying) {
+        //stop playing and return
+        sourceNode.stop( now );
+        sourceNode = null;
+        analyser = null;
+        isPlaying = false;
+		if (!window.cancelAnimationFrame)
+			window.cancelAnimationFrame = window.webkitCancelAnimationFrame;
+        window.cancelAnimationFrame( rafID );
+    }
     getUserMedia({audio:true}, gotStream);
 }
 
@@ -217,6 +261,7 @@ function autoCorrelate( buf, sampleRate ) {
 	var best_offset = -1;
 	var best_correlation = 0;
 	var rms = 0;
+	var foundGoodCorrelation = false;
 
 	if (buf.length < (SIZE + MAX_SAMPLES - MIN_SAMPLES))
 		return -1;  // Not enough data
@@ -226,7 +271,10 @@ function autoCorrelate( buf, sampleRate ) {
 		rms += val*val;
 	}
 	rms = Math.sqrt(rms/SIZE);
+	if (rms<0.01)
+		return -1;
 
+	var lastCorrelation=1;
 	for (var offset = MIN_SAMPLES; offset <= MAX_SAMPLES; offset++) {
 		var correlation = 0;
 
@@ -234,12 +282,19 @@ function autoCorrelate( buf, sampleRate ) {
 			correlation += Math.abs(((buf[i] - 128)/128)-((buf[i+offset] - 128)/128));
 		}
 		correlation = 1 - (correlation/SIZE);
+		if ((correlation>0.9) && (correlation > lastCorrelation))
+			foundGoodCorrelation = true;
+		else if (foundGoodCorrelation) {
+			// short-circuit - we found a good correlation, then a bad one, so we'd just be seeing copies from here.
+			return sampleRate/best_offset;
+		}
+		lastCorrelation = correlation;
 		if (correlation > best_correlation) {
 			best_correlation = correlation;
 			best_offset = offset;
 		}
 	}
-	if ((rms>0.01)&&(best_correlation > 0.01)) {
+	if (best_correlation > 0.01) {
 		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
 		return sampleRate/best_offset;
 	}
@@ -304,6 +359,30 @@ function updatePitch( time ) {
 // 	detectorElem.className = (confidence>50)?"confident":"vague";
 
 	// TODO: Paint confidence meter on canvasElem here.
+
+	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
+		waveCanvas.clearRect(0,0,512,256);
+		waveCanvas.strokeStyle = "red";
+		waveCanvas.beginPath();
+		waveCanvas.moveTo(0,0);
+		waveCanvas.lineTo(0,256);
+		waveCanvas.moveTo(128,0);
+		waveCanvas.lineTo(128,256);
+		waveCanvas.moveTo(256,0);
+		waveCanvas.lineTo(256,256);
+		waveCanvas.moveTo(384,0);
+		waveCanvas.lineTo(384,256);
+		waveCanvas.moveTo(512,0);
+		waveCanvas.lineTo(512,256);
+		waveCanvas.stroke();
+		waveCanvas.strokeStyle = "black";
+		waveCanvas.beginPath();
+		waveCanvas.moveTo(0,buf[0]);
+		for (var i=1;i<512;i++) {
+			waveCanvas.lineTo(i,buf[i]);
+		}
+		waveCanvas.stroke();
+	}
 
  	if (ac == -1) {
  		detectorElem.className = "vague";

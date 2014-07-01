@@ -26,6 +26,7 @@ div.vague { color: lightgrey; }
 
 <button onclick="this.innerText = togglePlayback()">use demo audio</button>
 <button onclick="toggleLiveInput()">use live input</button>
+<button onclick="toggleOscillator()">use oscillator</button>
 <!--<button onclick="updatePitch(0);">sample</button>-->
 
 <div id="detector" class="vague">
@@ -34,6 +35,10 @@ div.vague { color: lightgrey; }
 <div class="note"><span id="note">--</span></div>   
 <div id="detune"><span id="detune_amt">--</span><span id="flat">cents &#9837;</span><span id="sharp">cents &#9839;</span></div>
 </div>
+
+<!-- just used for debugging
+<canvas id="waveform" width="512" height="256"></canvas>
+-->
 <a href="https://github.com/cwilso/pitchdetect" style="position: absolute; z-index:2; top: 0; right: 0; border: 0;"><img src="img/forkme.png" alt="Fork me on GitHub"></a>
 
 <script type="text/javascript">
