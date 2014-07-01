@@ -31,12 +31,9 @@ var analyser = null;
 var theBuffer = null;
 var DEBUGCANVAS = null;
 var detectorElem, 
-<<<<<<< HEAD
 	canvasElem,
 	waveCanvas,
-=======
 	canvasContext,
->>>>>>> FETCH_HEAD
 	pitchElem,
 	noteElem,
 	detuneElem,
