@@ -56,7 +56,6 @@ window.onload = function() {
 	request.send();
 
 	detectorElem = document.getElementById( "detector" );
-<<<<<<< HEAD
 	canvasElem = document.getElementById( "output" );
 	DEBUGCANVAS = document.getElementById( "waveform" );
 	if (DEBUGCANVAS) {
@@ -64,8 +63,6 @@ window.onload = function() {
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.lineWidth = 1;
 	}
-=======
->>>>>>> FETCH_HEAD
 	pitchElem = document.getElementById( "pitch" );
 	noteElem = document.getElementById( "note" );
 	detuneElem = document.getElementById( "detune" );
@@ -335,16 +332,14 @@ function autoCorrelate( buf, sampleRate ) {
 			best_offset = offset;
 		}
 	}
-<<<<<<< HEAD
 	if (best_correlation > 0.01) {
-=======
-	if ((rms>0.01)&&(best_correlation > 0.01)) {
 		confidence = best_correlation * rms * 10000;
 		currentPitch = sampleRate/best_offset;
->>>>>>> FETCH_HEAD
 		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
+		return sampleRate/bestOffset;
 	}
 //	var best_frequency = sampleRate/best_offset;
+	return -1;
 }
 
 function updatePitch( time ) {
@@ -405,7 +400,6 @@ function updatePitch( time ) {
 
 	canvasContext.clearRect(0,0,WIDTH,HEIGHT);
 
-<<<<<<< HEAD
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
 		waveCanvas.clearRect(0,0,512,256);
 		waveCanvas.strokeStyle = "red";
@@ -431,9 +425,7 @@ function updatePitch( time ) {
 	}
 
  	if (ac == -1) {
-=======
  	if (confidence <10) {
->>>>>>> FETCH_HEAD
  		detectorElem.className = "vague";
 	 	pitchElem.innerText = "--";
 		noteElem.innerText = "-";
