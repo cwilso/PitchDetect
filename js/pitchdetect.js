@@ -1,3 +1,29 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 Chris Wilson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
 var audioContext = new AudioContext();
 var isPlaying = false;
 var sourceNode = null;
@@ -5,12 +31,21 @@ var analyser = null;
 var theBuffer = null;
 var DEBUGCANVAS = null;
 var detectorElem, 
+<<<<<<< HEAD
 	canvasElem,
 	waveCanvas,
+=======
+	canvasContext,
+>>>>>>> FETCH_HEAD
 	pitchElem,
 	noteElem,
 	detuneElem,
 	detuneAmount;
+var WIDTH=300;
+var CENTER=150;
+var HEIGHT=42;
+var confidence = 0;
+var currentPitch = 0;
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
@@ -24,6 +59,7 @@ window.onload = function() {
 	request.send();
 
 	detectorElem = document.getElementById( "detector" );
+<<<<<<< HEAD
 	canvasElem = document.getElementById( "output" );
 	DEBUGCANVAS = document.getElementById( "waveform" );
 	if (DEBUGCANVAS) {
@@ -31,10 +67,13 @@ window.onload = function() {
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.lineWidth = 1;
 	}
+=======
+>>>>>>> FETCH_HEAD
 	pitchElem = document.getElementById( "pitch" );
 	noteElem = document.getElementById( "note" );
 	detuneElem = document.getElementById( "detune" );
 	detuneAmount = document.getElementById( "detune_amt" );
+	canvasContext = document.getElementById( "output" ).getContext("2d");
 
 	detectorElem.ondragenter = function () { 
 		this.classList.add("droptarget"); 
@@ -167,6 +206,7 @@ var buflen = 2048;
 var buf = new Uint8Array( buflen );
 var MINVAL = 134;  // 128 == zero.  MINVAL is the "minimum detected signal" level.
 
+/*
 function findNextPositiveZeroCrossing( start ) {
 	var i = Math.ceil( start );
 	var last_zero = -1;
@@ -202,6 +242,7 @@ function findNextPositiveZeroCrossing( start ) {
 	var t = ( 128 - buf[last_zero-1] ) / (buf[last_zero] - buf[last_zero-1]);
 	return last_zero+t;
 }
+*/
 
 var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -215,7 +256,7 @@ function frequencyFromNoteNumber( note ) {
 }
 
 function centsOffFromPitch( frequency, note ) {
-	return Math.floor( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
+	return ( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
 }
 
 // this is a float version of the algorithm below - but it's not currently used.
@@ -263,8 +304,11 @@ function autoCorrelate( buf, sampleRate ) {
 	var rms = 0;
 	var foundGoodCorrelation = false;
 
+	confidence = 0;
+	currentPitch = 0;
+
 	if (buf.length < (SIZE + MAX_SAMPLES - MIN_SAMPLES))
-		return -1;  // Not enough data
+		return;  // Not enough data
 
 	for (var i=0;i<SIZE;i++) {
 		var val = (buf[i] - 128)/128;
@@ -294,11 +338,15 @@ function autoCorrelate( buf, sampleRate ) {
 			best_offset = offset;
 		}
 	}
+<<<<<<< HEAD
 	if (best_correlation > 0.01) {
+=======
+	if ((rms>0.01)&&(best_correlation > 0.01)) {
+		confidence = best_correlation * rms * 10000;
+		currentPitch = sampleRate/best_offset;
+>>>>>>> FETCH_HEAD
 		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
-		return sampleRate/best_offset;
 	}
-	return -1;
 //	var best_frequency = sampleRate/best_offset;
 }
 
@@ -354,12 +402,13 @@ function updatePitch( time ) {
 		);
 */
 	// possible other approach to confidence: sort the array, take the median; go through the array and compute the average deviation
-	var ac = autoCorrelate( buf, audioContext.sampleRate );
+	autoCorrelate( buf, audioContext.sampleRate );
 
 // 	detectorElem.className = (confidence>50)?"confident":"vague";
 
-	// TODO: Paint confidence meter on canvasElem here.
+	canvasContext.clearRect(0,0,WIDTH,HEIGHT);
 
+<<<<<<< HEAD
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
 		waveCanvas.clearRect(0,0,512,256);
 		waveCanvas.strokeStyle = "red";
@@ -385,6 +434,9 @@ function updatePitch( time ) {
 	}
 
  	if (ac == -1) {
+=======
+ 	if (confidence <10) {
+>>>>>>> FETCH_HEAD
  		detectorElem.className = "vague";
 	 	pitchElem.innerText = "--";
 		noteElem.innerText = "-";
@@ -392,20 +444,29 @@ function updatePitch( time ) {
 		detuneAmount.innerText = "--";
  	} else {
 	 	detectorElem.className = "confident";
-	 	pitch = ac;
-	 	pitchElem.innerText = Math.floor( pitch ) ;
-	 	var note =  noteFromPitch( pitch );
+	 	pitchElem.innerText = Math.floor( currentPitch ) ;
+	 	var note =  noteFromPitch( currentPitch );
 		noteElem.innerHTML = noteStrings[note%12];
-		var detune = centsOffFromPitch( pitch, note );
+		var detune = centsOffFromPitch( currentPitch, note );
 		if (detune == 0 ) {
 			detuneElem.className = "";
 			detuneAmount.innerHTML = "--";
+
+			// TODO: draw a line.
 		} else {
-			if (detune < 0)
-				detuneElem.className = "flat";
+			if (Math.abs(detune)<10)
+				canvasContext.fillStyle = "green";
 			else
+				canvasContext.fillStyle = "red";
+
+			if (detune < 0) {
+	  			detuneElem.className = "flat";
+			}
+			else {
 				detuneElem.className = "sharp";
-			detuneAmount.innerHTML = Math.abs( detune );
+			}
+  			canvasContext.fillRect(CENTER, 0, (detune*3), HEIGHT);
+			detuneAmount.innerHTML = Math.abs( Math.floor( detune ) );
 		}
 	}
 
