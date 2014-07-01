@@ -33,16 +33,10 @@ var DEBUGCANVAS = null;
 var detectorElem, 
 	canvasElem,
 	waveCanvas,
-	canvasContext,
 	pitchElem,
 	noteElem,
 	detuneElem,
 	detuneAmount;
-var WIDTH=300;
-var CENTER=150;
-var HEIGHT=42;
-var confidence = 0;
-var currentPitch = 0;
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
@@ -67,7 +61,6 @@ window.onload = function() {
 	noteElem = document.getElementById( "note" );
 	detuneElem = document.getElementById( "detune" );
 	detuneAmount = document.getElementById( "detune_amt" );
-	canvasContext = document.getElementById( "output" ).getContext("2d");
 
 	detectorElem.ondragenter = function () { 
 		this.classList.add("droptarget"); 
@@ -200,7 +193,6 @@ var buflen = 2048;
 var buf = new Uint8Array( buflen );
 var MINVAL = 134;  // 128 == zero.  MINVAL is the "minimum detected signal" level.
 
-/*
 function findNextPositiveZeroCrossing( start ) {
 	var i = Math.ceil( start );
 	var last_zero = -1;
@@ -236,7 +228,6 @@ function findNextPositiveZeroCrossing( start ) {
 	var t = ( 128 - buf[last_zero-1] ) / (buf[last_zero] - buf[last_zero-1]);
 	return last_zero+t;
 }
-*/
 
 var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -250,7 +241,7 @@ function frequencyFromNoteNumber( note ) {
 }
 
 function centsOffFromPitch( frequency, note ) {
-	return ( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
+	return Math.floor( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
 }
 
 // this is a float version of the algorithm below - but it's not currently used.
@@ -298,11 +289,8 @@ function autoCorrelate( buf, sampleRate ) {
 	var rms = 0;
 	var foundGoodCorrelation = false;
 
-	confidence = 0;
-	currentPitch = 0;
-
 	if (buf.length < (SIZE + MAX_SAMPLES - MIN_SAMPLES))
-		return;  // Not enough data
+		return -1;  // Not enough data
 
 	for (var i=0;i<SIZE;i++) {
 		var val = (buf[i] - 128)/128;
@@ -333,13 +321,11 @@ function autoCorrelate( buf, sampleRate ) {
 		}
 	}
 	if (best_correlation > 0.01) {
-		confidence = best_correlation * rms * 10000;
-		currentPitch = sampleRate/best_offset;
 		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
-		return sampleRate/bestOffset;
+		return sampleRate/best_offset;
 	}
-//	var best_frequency = sampleRate/best_offset;
 	return -1;
+//	var best_frequency = sampleRate/best_offset;
 }
 
 function updatePitch( time ) {
@@ -394,11 +380,11 @@ function updatePitch( time ) {
 		);
 */
 	// possible other approach to confidence: sort the array, take the median; go through the array and compute the average deviation
-	autoCorrelate( buf, audioContext.sampleRate );
+	var ac = autoCorrelate( buf, audioContext.sampleRate );
 
 // 	detectorElem.className = (confidence>50)?"confident":"vague";
 
-	canvasContext.clearRect(0,0,WIDTH,HEIGHT);
+	// TODO: Paint confidence meter on canvasElem here.
 
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
 		waveCanvas.clearRect(0,0,512,256);
@@ -425,7 +411,6 @@ function updatePitch( time ) {
 	}
 
  	if (ac == -1) {
- 	if (confidence <10) {
  		detectorElem.className = "vague";
 	 	pitchElem.innerText = "--";
 		noteElem.innerText = "-";
@@ -433,29 +418,20 @@ function updatePitch( time ) {
 		detuneAmount.innerText = "--";
  	} else {
 	 	detectorElem.className = "confident";
-	 	pitchElem.innerText = Math.floor( currentPitch ) ;
-	 	var note =  noteFromPitch( currentPitch );
+	 	pitch = ac;
+	 	pitchElem.innerText = Math.floor( pitch ) ;
+	 	var note =  noteFromPitch( pitch );
 		noteElem.innerHTML = noteStrings[note%12];
-		var detune = centsOffFromPitch( currentPitch, note );
+		var detune = centsOffFromPitch( pitch, note );
 		if (detune == 0 ) {
 			detuneElem.className = "";
 			detuneAmount.innerHTML = "--";
-
-			// TODO: draw a line.
 		} else {
-			if (Math.abs(detune)<10)
-				canvasContext.fillStyle = "green";
+			if (detune < 0)
+				detuneElem.className = "flat";
 			else
-				canvasContext.fillStyle = "red";
-
-			if (detune < 0) {
-	  			detuneElem.className = "flat";
-			}
-			else {
 				detuneElem.className = "sharp";
-			}
-  			canvasContext.fillRect(CENTER, 0, (detune*3), HEIGHT);
-			detuneAmount.innerHTML = Math.abs( Math.floor( detune ) );
+			detuneAmount.innerHTML = Math.abs( detune );
 		}
 	}
 
