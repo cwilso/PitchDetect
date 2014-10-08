@@ -153,7 +153,18 @@ function toggleLiveInput() {
 			window.cancelAnimationFrame = window.webkitCancelAnimationFrame;
         window.cancelAnimationFrame( rafID );
     }
-    getUserMedia({audio:true}, gotStream);
+    getUserMedia(
+    	{
+            "audio": {
+                "mandatory": {
+                    "googEchoCancellation": "false",
+                    "googAutoGainControl": "false",
+                    "googNoiseSuppression": "false",
+                    "googHighpassFilter": "false"
+                },
+                "optional": []
+            },
+        }, gotStream);
 }
 
 function togglePlayback() {
