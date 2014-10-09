@@ -24,12 +24,13 @@ SOFTWARE.
 
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
-var audioContext = new AudioContext();
+var audioContext = null;
 var isPlaying = false;
 var sourceNode = null;
 var analyser = null;
 var theBuffer = null;
 var DEBUGCANVAS = null;
+var mediaStreamSource = null;
 var detectorElem, 
 	canvasElem,
 	waveCanvas,
@@ -39,6 +40,8 @@ var detectorElem,
 	detuneAmount;
 
 window.onload = function() {
+	audioContext = new AudioContext();
+	MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));	// corresponds to a 5kHz signal
 	var request = new XMLHttpRequest();
 	request.open("GET", "../sounds/whistling3.ogg", true);
 	request.responseType = "arraybuffer";
@@ -107,7 +110,7 @@ function getUserMedia(dictionary, callback) {
 
 function gotStream(stream) {
     // Create an AudioNode from the stream.
-    var mediaStreamSource = audioContext.createMediaStreamSource(stream);
+    mediaStreamSource = audioContext.createMediaStreamSource(stream);
 
     // Connect it to the destination.
     analyser = audioContext.createAnalyser();
@@ -119,7 +122,7 @@ function gotStream(stream) {
 function toggleOscillator() {
     if (isPlaying) {
         //stop playing and return
-        sourceNode.stop( now );
+        sourceNode.stop( 0 );
         sourceNode = null;
         analyser = null;
         isPlaying = false;
@@ -145,7 +148,7 @@ function toggleOscillator() {
 function toggleLiveInput() {
     if (isPlaying) {
         //stop playing and return
-        sourceNode.stop( now );
+        sourceNode.stop( 0 );
         sourceNode = null;
         analyser = null;
         isPlaying = false;
@@ -168,11 +171,9 @@ function toggleLiveInput() {
 }
 
 function togglePlayback() {
-    var now = audioContext.currentTime;
-
     if (isPlaying) {
         //stop playing and return
-        sourceNode.stop( now );
+        sourceNode.stop( 0 );
         sourceNode = null;
         analyser = null;
         isPlaying = false;
@@ -190,7 +191,7 @@ function togglePlayback() {
     analyser.fftSize = 2048;
     sourceNode.connect( analyser );
     analyser.connect( audioContext.destination );
-    sourceNode.start( now );
+    sourceNode.start( 0 );
     isPlaying = true;
     isLiveInput = false;
     updatePitch();
@@ -200,45 +201,8 @@ function togglePlayback() {
 
 var rafID = null;
 var tracks = null;
-var buflen = 2048;
-var buf = new Uint8Array( buflen );
-var MINVAL = 134;  // 128 == zero.  MINVAL is the "minimum detected signal" level.
-
-function findNextPositiveZeroCrossing( start ) {
-	var i = Math.ceil( start );
-	var last_zero = -1;
-	// advance until we're zero or negative
-	while (i<buflen && (buf[i] > 128 ) )
-		i++;
-	if (i>=buflen)
-		return -1;
-
-	// advance until we're above MINVAL, keeping track of last zero.
-	while (i<buflen && ((t=buf[i]) < MINVAL )) {
-		if (t >= 128) {
-			if (last_zero == -1)
-				last_zero = i;
-		} else
-			last_zero = -1;
-		i++;
-	}
-
-	// we may have jumped over MINVAL in one sample.
-	if (last_zero == -1)
-		last_zero = i;
-
-	if (i==buflen)	// We didn't find any more positive zero crossings
-		return -1;
-
-	// The first sample might be a zero.  If so, return it.
-	if (last_zero == 0)
-		return 0;
-
-	// Otherwise, the zero might be between two values, so we need to scale it.
-
-	var t = ( 128 - buf[last_zero-1] ) / (buf[last_zero] - buf[last_zero-1]);
-	return last_zero+t;
-}
+var buflen = 1024;
+var buf = new Float32Array( buflen );
 
 var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -291,45 +255,54 @@ function autoCorrelateFloat( buf, sampleRate ) {
 }
 */
 
+var MIN_SAMPLES = 0;  // will be initialized when AudioContext is created.
+
 function autoCorrelate( buf, sampleRate ) {
-	var MIN_SAMPLES = 4;	// corresponds to an 11kHz signal
-	var MAX_SAMPLES = 1000; // corresponds to a 44Hz signal
-	var SIZE = 1000;
+	var SIZE = buf.length;
+	var MAX_SAMPLES = Math.floor(SIZE/2);
 	var best_offset = -1;
 	var best_correlation = 0;
 	var rms = 0;
 	var foundGoodCorrelation = false;
-
-	if (buf.length < (SIZE + MAX_SAMPLES - MIN_SAMPLES))
-		return -1;  // Not enough data
+	var correlations = new Array(MAX_SAMPLES);
 
 	for (var i=0;i<SIZE;i++) {
-		var val = (buf[i] - 128)/128;
+		var val = buf[i];
 		rms += val*val;
 	}
 	rms = Math.sqrt(rms/SIZE);
-	if (rms<0.01)
+	if (rms<0.01) // not enough signal
 		return -1;
 
 	var lastCorrelation=1;
-	for (var offset = MIN_SAMPLES; offset <= MAX_SAMPLES; offset++) {
+	for (var offset = MIN_SAMPLES; offset < MAX_SAMPLES; offset++) {
 		var correlation = 0;
 
-		for (var i=0; i<SIZE; i++) {
-			correlation += Math.abs(((buf[i] - 128)/128)-((buf[i+offset] - 128)/128));
+		for (var i=0; i<MAX_SAMPLES; i++) {
+			correlation += Math.abs((buf[i])-(buf[i+offset]));
 		}
-		correlation = 1 - (correlation/SIZE);
-		if ((correlation>0.9) && (correlation > lastCorrelation))
+		correlation = 1 - (correlation/MAX_SAMPLES);
+		correlations[offset] = correlation; // store it, for the tweaking we need to do below.
+		if ((correlation>0.9) && (correlation > lastCorrelation)) {
 			foundGoodCorrelation = true;
-		else if (foundGoodCorrelation) {
+			if (correlation > best_correlation) {
+				best_correlation = correlation;
+				best_offset = offset;
+			}
+		} else if (foundGoodCorrelation) {
 			// short-circuit - we found a good correlation, then a bad one, so we'd just be seeing copies from here.
-			return sampleRate/best_offset;
+			// Now we need to tweak the offset - by interpolating between the values to the left and right of the
+			// best offset, and shifting it a bit.  This is complex, and HACKY in this code (happy to take PRs!) -
+			// we need to do a curve fit on correlations[] around best_offset in order to better determine precise
+			// (anti-aliased) offset.
+
+			// we know best_offset >=1, 
+			// since foundGoodCorrelation cannot go to true until the second pass (offset=1), and 
+			// we can't drop into this clause until the following pass (else if).
+			var shift = (correlations[best_offset+1] - correlations[best_offset-1])/correlations[best_offset];  
+			return sampleRate/(best_offset+(8*shift));
 		}
 		lastCorrelation = correlation;
-		if (correlation > best_correlation) {
-			best_correlation = correlation;
-			best_offset = offset;
-		}
 	}
 	if (best_correlation > 0.01) {
 		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
@@ -341,60 +314,8 @@ function autoCorrelate( buf, sampleRate ) {
 
 function updatePitch( time ) {
 	var cycles = new Array;
-	analyser.getByteTimeDomainData( buf );
-
-/*
-// old zero-crossing code
-
-	var i=0;
-	// find the first point
-	var last_zero = findNextPositiveZeroCrossing( 0 );
-
-	var n=0;
-	// keep finding points, adding cycle lengths to array
-	while ( last_zero != -1) {
-		var next_zero = findNextPositiveZeroCrossing( last_zero + 1 );
-		if (next_zero > -1)
-			cycles.push( next_zero - last_zero );
-		last_zero = next_zero;
-
-		n++;
-		if (n>1000)
-			break;
-	}
-
-	// 1?: average the array
-	var num_cycles = cycles.length;
-	var sum = 0;
-	var pitch = 0;
-
-	for (var i=0; i<num_cycles; i++) {
-		sum += cycles[i];
-	}
-
-	if (num_cycles) {
-		sum /= num_cycles;
-		pitch = audioContext.sampleRate/sum;
-	}
-
-// confidence = num_cycles / num_possible_cycles = num_cycles / (audioContext.sampleRate/)
-	var confidence = (num_cycles ? ((num_cycles/(pitch * buflen / audioContext.sampleRate)) * 100) : 0);
-*/
-
-/*
-	console.log( 
-		"Cycles: " + num_cycles + 
-		" - average length: " + sum + 
-		" - pitch: " + pitch + "Hz " +
-		" - note: " + noteFromPitch( pitch ) +
-		" - confidence: " + confidence + "% "
-		);
-*/
-	// possible other approach to confidence: sort the array, take the median; go through the array and compute the average deviation
+	analyser.getFloatTimeDomainData( buf );
 	var ac = autoCorrelate( buf, audioContext.sampleRate );
-
-// 	detectorElem.className = (confidence>50)?"confident":"vague";
-
 	// TODO: Paint confidence meter on canvasElem here.
 
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
@@ -416,7 +337,7 @@ function updatePitch( time ) {
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,buf[0]);
 		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]);
+			waveCanvas.lineTo(i,128+(buf[i]*128));
 		}
 		waveCanvas.stroke();
 	}
@@ -430,7 +351,7 @@ function updatePitch( time ) {
  	} else {
 	 	detectorElem.className = "confident";
 	 	pitch = ac;
-	 	pitchElem.innerText = Math.floor( pitch ) ;
+	 	pitchElem.innerText = Math.round( pitch ) ;
 	 	var note =  noteFromPitch( pitch );
 		noteElem.innerHTML = noteStrings[note%12];
 		var detune = centsOffFromPitch( pitch, note );
