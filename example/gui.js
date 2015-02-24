@@ -187,19 +187,19 @@ function draw( pitch ) {
 		canvas.stroke();
 
 
-		canvas.strokeStyle = "red";
-		canvas.beginPath();
-		canvas.moveTo(0,0);
-		canvas.lineTo(0,256);
-		canvas.moveTo(128,0);
-		canvas.lineTo(128,256);
-		canvas.moveTo(256,0);
-		canvas.lineTo(256,256);
-		canvas.moveTo(384,0);
-		canvas.lineTo(384,256);
-		canvas.moveTo(512,0);
-		canvas.lineTo(512,256);
-		canvas.stroke();
+		// canvas.strokeStyle = "red";
+		// canvas.beginPath();
+		// canvas.moveTo(0,0);
+		// canvas.lineTo(0,256);
+		// canvas.moveTo(128,0);
+		// canvas.lineTo(128,256);
+		// canvas.moveTo(256,0);
+		// canvas.lineTo(256,256);
+		// canvas.moveTo(384,0);
+		// canvas.lineTo(384,256);
+		// canvas.moveTo(512,0);
+		// canvas.lineTo(512,256);
+		// canvas.stroke();
 
 		// canvas.strokeStyle = "red";
 		// canvas.beginPath();
