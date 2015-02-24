@@ -12,6 +12,8 @@ I've extracted the core logic into a standalone module.
 
 The GUI is now seperate (see `/example/gui.js`). I've also enhanced the display to visualize the detection algorithm.
 
+See demo at http://lab.madebymark.nl/pitch-detector/example/.
+
 - Mark
 
 ## Usage
