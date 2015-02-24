@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<title>Pitch Detector</title>
+<style>
+body { font-family: serif;}
+#note { font-size: 160px; }
+.droptarget { background-color: #348781}
+div.confident { color: black; }
+div.vague { color: lightgrey; }
+#note { display: inline-block; height:180px; text-align: left;}
+
+#detector { width: 300px; height: 246px; border: 4px solid gray; border-radius: 8px; text-align: center; padding-top: 10px; display: inline-block; float: left;}
+#waveform {border: 4px solid gray; border-radius: 8px; display: inline-block; width: 512px; height: 256px;  margin-left: 10px; float: left;}
+#flat { display: none; }
+#sharp { display: none; }
+.box {
+	float: left;
+	width: 512px;
+	height: 300px;
+}
+.box p {
+	margin-left: 10px;
+}
+.flat #flat { display: inline; }
+.sharp #sharp { display: inline; }
+p {clear: both; padding-top: 15px;}
+code { color: blue; padding: 2px;}
+</style>
+
+</head>
+<body>
+<script src="../pitchdetector.js"></script>
+<script src="gui.js"></script>
+
+<div>
+<button onclick="togglePlayback()">use demo audio</button>
+<button onclick="toggleLiveInput()">use live input</button>
+<button onclick="toggleOscillator()">use oscillator</button>
+<button onclick="stop()">stop</button>
+</div>
+<br/>
+
+<div id="detector" class="vague">
+<div class="pitch"><span id="pitch">--</span>Hz</div>
+<div class="note"><span id="note">--</span></div>   
+<div id="detune"><span id="detune_amt">--</span><span id="flat"> cents &#9837;</span><span id="sharp"> cents &#9839;</span></div>
+</div>
+
+<div class="box">
+<canvas id="waveform" width="512" height="256"></canvas>
+<p>
+<strong>Y-Axis</strong>: Correlation Score.
+<br/>
+<strong>X-Axis</strong>: Signal Period, 2-512 samples (22.05 kHz - 83 Hz, F10 - E2)
+<br/>
+<strong>Green lines</strong>: Range of pitch detection.
+<br/>
+<strong>Yellow Area</strong>: Detection Area (minimum correlation required for detection)
+<br/>
+<strong>Gray Area</strong>: Signal Strength (RMS)
+<br/>
+<strong>Black line</strong>: Minimal Signal Strength
+</p>
+</div>
+
+
+<a href="https://github.com/cwilso/pitchdetect" style="position: absolute; z-index:2; top: 0; right: 0; border: 0;"><img src="forkme.png" alt="Fork me on GitHub"></a>
+
+</body>
+</html>
