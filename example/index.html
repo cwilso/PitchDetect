@@ -70,6 +70,21 @@ code { color: blue; padding: 2px;}
 	</td>
 </tr>
 <tr>
+	<td>length:</td>
+	<td>
+		<select id="length">
+			<option value="1024">1024</option>
+			<option value="1024">512</option>
+			<option value="256">256</option>
+			<option value="128">128</option>
+			<option value="64">64</option>
+			<option value="32">32</option>
+			<option value="2048">2048</option>
+		</select>
+		Audio Buffer Length
+	</td>
+</tr>
+<tr>
 	<td>minRms:</td>
 	<td>
 		<input id="minrms" type="number" value="0.01"/> Minimal signal strength (Black Line)
@@ -89,9 +104,9 @@ code { color: blue; padding: 2px;}
 	<td>Pitch Detection:</td>
 	<td>
 		<select id="detection">
-			<option value="none">best overal correlation</option>
-			<option value="correlation">first peak correlation</option>
-			<option value="strength">first large increase in correlation</option>
+			<option value="none">best auto-correlation</option>
+			<option value="correlation">first peak auto-correlation</option>
+			<option value="strength">first increase in auto-correlation</option>
 		</select>
 		<span class="strength hidden">
 		- minCorrelationIncrease (0-1): <input id="strength" type="number" value="0.5"/> 

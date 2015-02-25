@@ -28,7 +28,7 @@ $(function(){
 	// Global Variables
 	var audioContext = new AudioContext();
 	var osc = null;
-	var options = {	};
+	var options = {	start: true };
 	var needsReset = true;
 	var pitchDetector = null;
 	var theBuffer = null;
@@ -38,6 +38,7 @@ $(function(){
 		input: $('#input'),
 		notes: $('#notes'),
 		output: $('#output'),
+		length: $('#length'),
 		minRms: $('#minrms'),
 		normalize:  $('#normalize'),
 		detection: $('#detection'),
@@ -76,6 +77,10 @@ $(function(){
 	});
 
 	inputs.output.change(function(e){
+		needsReset = true;
+	});
+
+	inputs.length.change(function(e){
 		needsReset = true;
 	});
 
@@ -169,7 +174,7 @@ $(function(){
 		if(input === 'osc'){
 			sourceNode = audioContext.createOscillator();
 			sourceNode.frequency.value = 440;
-			sourceNode.start();
+			sourceNode.start(0);
 		} else if(input === 'audio'){
 			sourceNode = audioContext.createBufferSource();
 		    sourceNode.buffer = theBuffer;
@@ -183,6 +188,8 @@ $(function(){
 		if(inputs.output.is(':checked')){
 	   		options.output = audioContext.destination;
 		}
+
+		options.length = inputs.length.val() * 1;
 
 		options.minRms = 1.0 * inputs.minRms.val() || 0.01;
 		var normalize = inputs.normalize.val();
@@ -213,13 +220,18 @@ $(function(){
 
 		options.context = audioContext;
 		if(needsReset || !pitchDetector){
+			console.log('created PitchDetector',options);
 			pitchDetector = new PitchDetector(options);
 			needsReset = false;
 		} else {
 			delete options.context;
+			delete options.output;
+			delete options.input;
 			pitchDetector.setOptions(options);
 		}
 		delete options.context;
+		delete options.output;
+		delete options.input;
 		$('#settings').text(JSON.stringify(options,null,4));
 		window.pitchDetector = pitchDetector;
 	};
@@ -227,12 +239,12 @@ $(function(){
 	function draw( stats ) {
 		if(!pitchDetector || !pitchDetector.buffer) return;
 		var buf = pitchDetector.buffer;
-		var i = 0, val = 0, len = 0;
+		var i = 0, val = 0, len = 0, bufferlen = pitchDetector.MAX_SAMPLES;
 		var start = pitchDetector.periods[0];
 		var end = pitchDetector.periods[pitchDetector.periods.length-1];
 		var width = end-start;
 		
-		canvas.clearRect(0,0,512,256);
+		canvas.clearRect(0,0,bufferlen,256);
 
 		// AREA: Draw Pitch Detection Area
 		if(pitchDetector.options.minCorrelation){
@@ -240,13 +252,13 @@ $(function(){
 			canvas.fillRect(start,0,width,(1-pitchDetector.options.minCorrelation) * 256);
 		} else if(pitchDetector.options.minCorrelationIncrease) {
 			canvas.fillStyle = "#EEEEFF";
-			canvas.fillRect(0,0,512,(1-pitchDetector.options.minCorrelationIncrease) * 256);
+			canvas.fillRect(0,0,bufferlen,(1-pitchDetector.options.minCorrelationIncrease) * 256);
 		}
 			
 		// AREA: Draw RMS
 		canvas.fillStyle = "#EEEEEE";
 		val = stats.rms * 256;
-		canvas.fillRect(0,256-val,512,val);
+		canvas.fillRect(0,256-val,bufferlen,val);
 
 		// AREA: Draw Correlations
 		canvas.beginPath();
@@ -287,7 +299,7 @@ $(function(){
 			canvas.beginPath();
 			val = 256 - (stats.best_correlation - stats.worst_correlation) * 256;
 			canvas.moveTo(0,val);
-			canvas.lineTo(512,val);
+			canvas.lineTo(bufferlen,val);
 			canvas.stroke();
 		}
 

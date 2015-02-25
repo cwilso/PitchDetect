@@ -33,13 +33,35 @@ var detector = new PitchDetector({
 	output: AudioNode, // default: no output
 
 	// Callback on pitch detection (Optional)
-	callback: function(frequency, pitchDetector) { },
+	// You can also query the results using public methods.
+	onDetect: function(stats, pitchDetector) { 
+		stats.frequency
+		stats.detected
+		stats.worst_correlation // worst correlation BEFORE the best correlation (local minimum, not global minimum!)
+		stats.best_correlation 
+		stats.worst_period
+		stats.best_period
+		stats.time // audioContext currentTime of detection
+		stats.rms
+	},
+
+	// Debug Callback for visualisation
+	onDebug: function(stats, pitchDetector) { },
 
 	// Minimal signal strength (RMS, Optional)
 	minRms: 0.01,
 
-	// Minimal Correlation for early detection (Optional)
+	// Detect pitch only with minimal correlation of:
 	minCorrelation: 0.9,
+
+	// Detect pitch only if correlation increases with at least:
+	minCorreationIncrease: 0.5,
+
+	// Note: you cannot use minCorrelation and minCorreationIncrease
+	// at the same time!
+
+	// Signal Normalization
+	normalize: "rms" // or "peak". default: undefined
 
 	// Only detect pitch once:
 	stopAfterDetection: false
@@ -73,7 +95,7 @@ detector.stop()
 detector.destroy()
 ```
 
-You can also query the latest data:
+You can also query the latest detected pitch:
 ```javascript
 detector.getFrequency() // --> 440hz
 detector.getNoteNumber() // --> 69
@@ -81,12 +103,33 @@ detector.getNoteString() // --> "A4"
 detector.getPeriod() // --> 100
 detector.getDetune() // --> 0
 detector.getCorrelation() // --> 0.95
-```
+detector.getCorrelationIncrease() // --> 0.95
 
-Note that the callback gives you a reference to the pitchDetector, so you can do:
-```javascript
-var callback = function(frequency,detector) {
-	detector.getDetune();
-	// etc
+// or raw data
+detector.stats = {
+	stats.frequency
+	stats.detected
+	stats.worst_correlation
+	stats.best_correlation 
+	stats.worst_period
+	stats.best_period
+	stats.rms
 }
 ```
+
+## Tips & Tricks
+
+### Always use an optimization
+
+* `minCorrelation` is the most reliable
+* `minCorreationIncrease` can sometimes give better results.
+
+### Use `RMS` or `Peak` normalization with `minCorrelationIncrease`
+
+The increase in correlation strongly depends on signal volume. Therefore, normalizing using `RMS` or `Peak` can make `minCorrelationIncrease` work much better.
+
+### Set a frequency range
+
+If you know what you're looking or, set a frequency range. 
+
+**Warning:** `minCorrelationIncrease` needs a bigger frequency range, because needs it detects target frequency when higher frequencies have a very **low correlation**! (Therefore the correlation increase from "bad frequency" to "target frequency" is high).

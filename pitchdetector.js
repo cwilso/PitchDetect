@@ -144,7 +144,7 @@ PitchDetector.prototype.setOptions = function(options){
 
 	// Override options (if defined)
 	['minCorrelation','minCorrelationIncrease','minRms',
-		'normalize',
+		'normalize','stopAfterDetection',
 		'onDebug','onDetect','onDestroy'
 	].forEach(function(option){
 		if(typeof options[option] !== 'undefined') {
@@ -164,8 +164,8 @@ PitchDetector.prototype.setOptions = function(options){
 	var maxPeriod = options.maxPeriod || this.options.maxPeriod || this.MAX_SAMPLES;
 	if(options.note){
 		var period = Math.round(noteToPeriod(options.note,this.sampleRate));
-		minPeriod = period - 1;
-		maxPeriod = period + 1;
+		minPeriod = period;
+		maxPeriod = period;
 	}
 	if(options.minNote){
 		maxPeriod = Math.round(noteToPeriod(options.minNote,this.sampleRate));	
@@ -183,12 +183,23 @@ PitchDetector.prototype.setOptions = function(options){
 		this.periods = options.periods;
 	} else {
 		this.periods = [];
+		if(maxPeriod < minPeriod) {
+			var tmp = maxPeriod;
+			maxPeriod = minPeriod;
+			minPeriod = tmp;
+		}
+		var range = [1,1];
+		if(this.options.minCorrelation){
+			range = [1,1];
+		} else if(this.options.minCorrelationIncrease){
+			range = [10,1];
+		}
+		if(maxPeriod - minPeriod < 1 + range[0] + range[1]){
+			minPeriod = Math.floor(minPeriod - range[0]);
+			maxPeriod = Math.ceil(maxPeriod + range[1]);
+		}
 		maxPeriod = Math.min(maxPeriod,this.MAX_SAMPLES);
 		minPeriod = Math.max(2,minPeriod);
-		if(maxPeriod - minPeriod < 2){
-			minPeriod = Math.floor(minPeriod - 1);
-			maxPeriod = Math.ceil(maxPeriod + 1);
-		}
 		this.options.minPeriod = minPeriod;
 		this.options.maxPeriod = maxPeriod;
 		for(var i = minPeriod; i <= maxPeriod; i++){
@@ -454,6 +465,7 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
 	if(this.options.onDebug){
 		this.debug.detected = false;
 		this.debug.rms = rms;
+		this.debug.time = this.context.currentTime;
 		this.debug.best_period = best_period;
 		this.debug.worst_period = worst_period;
 		this.debug.best_correlation = best_correlation;
@@ -466,6 +478,7 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
 		this.stats.worst_period = worst_period;
 		this.stats.best_correlation = best_correlation;
 		this.stats.worst_correlation = worst_correlation;
+		this.stats.time = this.context.currentTime;
 		this.stats.rms = rms;
 
 		// console.log("f = " + this.sampleRate/best_period + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
