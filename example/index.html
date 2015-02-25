@@ -17,7 +17,6 @@ div.vague { color: lightgrey; }
 .box {
 	float: left;
 	width: 512px;
-	height: 300px;
 }
 .hidden {
 	display: none;
@@ -42,6 +41,9 @@ code { color: blue; padding: 2px;}
 
 <div>
 <h1>Pitch Detector</h1>
+<p>
+	Calculated using the <a href="http://en.wikipedia.org/wiki/Autocorrelation" target="_blank">auto-correlation</a> algorithm for every frequency.
+</p>
 <table>
 <tr>
 	<td>input:</td>
@@ -181,7 +183,6 @@ code { color: blue; padding: 2px;}
 <h4>Pitch Detector Settings:</h4>
 <pre id="settings"></pre>
 </div>
-
 
 <a href="https://github.com/cwilso/pitchdetect" style="position: absolute; z-index:2; top: 0; right: 0; border: 0;"><img src="forkme.png" alt="Fork me on GitHub"></a>
 
