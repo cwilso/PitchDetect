@@ -170,4 +170,4 @@ Original code from [Chris Wilson](https://github.com/cwilso), improvements (see 
 -   http://www.madebymark.nl
 -   info@madebymark.nl
 
-© 2015 - Mark Marijnissen
+© 2015 - Mark Marijnissen & Chris Wilson
