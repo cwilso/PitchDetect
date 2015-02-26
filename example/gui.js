@@ -51,6 +51,12 @@ $(function(){
 		stopAfterDetection: $('#stopAfterDetection')
 	};
 
+
+	var data = JSON.parse(localStorage.getItem('pitch-detector-settings')) || {};
+	for(var x in data){
+		inputs[x].val(data[x]);
+	}
+
 	// GUI Elements
 	var gui = {
 		detector: $('#detector'),
@@ -64,6 +70,9 @@ $(function(){
 	// Canvas Element
 	canvasEl = $("#waveform").get(0);
 	canvas = canvasEl.getContext("2d");
+	window.savePic = function(){
+		window.open(canvasEl.toDataURL("image/png"));
+	};
 
 	// Show/Hide Stuff on Form Change
 	inputs.input.change(function(e){
@@ -190,21 +199,28 @@ $(function(){
 		}
 
 		options.length = inputs.length.val() * 1;
+		options.stopAfterDetection = inputs.stopAfterDetection.is(':checked');
+
+		for(var key in options){
+			if(/^(min|max)/.test(key)){
+				delete options[key];
+			}
+		}
 
 		options.minRms = 1.0 * inputs.minRms.val() || 0.01;
 		var normalize = inputs.normalize.val();
 		if(normalize !== 'none'){
 			options.normalize = normalize;
+		} else {
+			options.normalize = false;
 		}
 
-		options.stopAfterDetection = inputs.stopAfterDetection.is(':checked');
-
 		var detection = inputs.detection.val();
+		options.minCorrelationIncrease = false;
+		options.minCorrelation = false;
 		if(detection === 'correlation'){
-			options.minCorrelationIncrease = false;
 			options.minCorrelation = inputs.minCorrelation.val() * 1.0;
 		} else if(detection === 'strength') {
-			options.minCorrelation = false;
 			options.minCorrelationIncrease = inputs.minCorrelationIncrease.val() * 1.0;
 		}
 
@@ -212,7 +228,7 @@ $(function(){
 		if(range !== 'none'){
 			options['min'+range] = inputs.min.val() * 1.0;
 			options['max'+range] = inputs.max.val() * 1.0;
-		}
+		} 
 
 		options.onDebug = false;
 		options.onDetect = false;
@@ -224,84 +240,24 @@ $(function(){
 			pitchDetector = new PitchDetector(options);
 			needsReset = false;
 		} else {
-			delete options.context;
-			delete options.output;
-			delete options.input;
-			pitchDetector.setOptions(options);
+			pitchDetector.setOptions(options,true);
 		}
 		delete options.context;
 		delete options.output;
 		delete options.input;
 		$('#settings').text(JSON.stringify(options,null,4));
 		window.pitchDetector = pitchDetector;
+
+		var data = {};
+		for(x in inputs){
+			var el = inputs[x];
+			data[x] = el.val();
+		}
+		localStorage.setItem('pitch-detector-settings',JSON.stringify(data));
 	};
 
-	function draw( stats ) {
-		if(!pitchDetector || !pitchDetector.buffer) return;
-		var buf = pitchDetector.buffer;
-		var i = 0, val = 0, len = 0, bufferlen = pitchDetector.MAX_SAMPLES;
-		var start = pitchDetector.periods[0];
-		var end = pitchDetector.periods[pitchDetector.periods.length-1];
-		var width = end-start;
-		
-		canvas.clearRect(0,0,bufferlen,256);
-
-		// AREA: Draw Pitch Detection Area
-		if(pitchDetector.options.minCorrelation){
-			canvas.fillStyle = "yellow";
-			canvas.fillRect(start,0,width,(1-pitchDetector.options.minCorrelation) * 256);
-		} else if(pitchDetector.options.minCorrelationIncrease) {
-			canvas.fillStyle = "#EEEEFF";
-			canvas.fillRect(0,0,bufferlen,(1-pitchDetector.options.minCorrelationIncrease) * 256);
-		}
-			
-		// AREA: Draw RMS
-		canvas.fillStyle = "#EEEEEE";
-		val = stats.rms * 256;
-		canvas.fillRect(0,256-val,bufferlen,val);
-
-		// AREA: Draw Correlations
-		canvas.beginPath();
-		canvas.strokeStyle = "black";
-		if(pitchDetector.options.minCorrelation || pitchDetector.options.minCorrelationIncrease){
-			len = stats.best_period + 1;
-		} else {
-			len = pitchDetector.correlations.length;
-		}
-		for(i = 0; i<len; i++){
-			val = pitchDetector.correlations[i] || 0;
-			canvas.moveTo(i,256);
-			canvas.lineTo(i,256 - (val * 256));
-			canvas.moveTo(i,256);
-		}
-		canvas.stroke();
-
-		// LINE: Draw Frequency Range
-		canvas.strokeStyle = "green";
-		canvas.beginPath();
-		canvas.moveTo(start,0);
-		canvas.lineTo(start,256);
-		canvas.moveTo(end,0);
-		canvas.lineTo(end,256);
-		canvas.stroke();
-
-		// LINE: Draw Min RMS
-		val = 256 - pitchDetector.options.minRms * 256;
-		canvas.strokeStyle = "black";
-		canvas.beginPath();
-		canvas.moveTo(0,val);
-		canvas.lineTo(512,val);
-		canvas.stroke();
-
-		// LINE: Draw Strength (i.e. increase in correlation)
-		if(pitchDetector.options.minCorrelationIncrease){
-			canvas.strokeStyle = "blue";
-			canvas.beginPath();
-			val = 256 - (stats.best_correlation - stats.worst_correlation) * 256;
-			canvas.moveTo(0,val);
-			canvas.lineTo(bufferlen,val);
-			canvas.stroke();
-		}
+	function draw( stats, detector ) {
+		PitchDetectorCanvasDraw(canvas, stats, detector);
 
 		// Update Pitch Detection GUI
 	 	if (!stats.detected) {
@@ -312,10 +268,10 @@ $(function(){
 	 		gui.detune.text('--');
 	 	} else {
 	 		gui.detector.attr('class','confident');
-		 	var note =  pitchDetector.getNoteNumber();
-			var detune = pitchDetector.getDetune();
+		 	var note =  detector.getNoteNumber();
+			var detune = detector.getDetune();
 		 	gui.pitch.text( Math.round( stats.frequency ) );
-			gui.note.text(pitchDetector.getNoteString());
+			gui.note.text(detector.getNoteString());
 			if (detune === 0){
 		 		gui.detuneBox.attr('class','');
 		 		gui.detune.text('--');

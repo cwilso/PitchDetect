@@ -83,17 +83,19 @@ function PitchDetector(options){
 	// Options:
 	this.options = {
 		minRms: 0.01,
+		interpolateFrequency: true,
 		stopAfterDetection: false,
 		normalize: false,
 		minCorrelation: false,
+		length: options.length,
 		minCorrelationIncrease: false
 	};
 
 	// Internal Variables
 	this.context = options.context; // AudioContext
 	this.sampleRate = this.context.sampleRate; // sampleRate
-	this.buffer = new Float32Array( options.length || 1024 ); // buffer array
-	this.MAX_SAMPLES = Math.floor(this.buffer.length/2); // MAX_SAMPLES number
+	//this.buffer = new Float32Array( options.length || 1024 ); // buffer array
+	this.MAX_SAMPLES = Math.floor(options.length/2); // MAX_SAMPLES number
 	this.correlations = new Array(this.MAX_SAMPLES); // correlation array
 	this.update = this.update.bind(this); // update function (bound to this)
 	this.started = false; // state flag (to cancel requestAnimationFrame)
@@ -102,14 +104,17 @@ function PitchDetector(options){
 
 	// Stats:
 	this.stats = {
-		detected: true,
+		detected: false,
 		frequency: -1,
 		best_period: 0,
 		worst_period: 0,
 		best_correlation: 0.0,
 		worst_correlation: 0.0,
+		time: 0.0,
 		rms: 0.0,
 	};
+
+	this.lastOnDetect = 0.0;
 	
 	// Set input
 	if(!options.input){
@@ -139,12 +144,12 @@ function PitchDetector(options){
 	this.setOptions(options);
 }
 
-PitchDetector.prototype.setOptions = function(options){
+PitchDetector.prototype.setOptions = function(options,ignoreConstructorOnlyProperties){
 	var self = this;
 
 	// Override options (if defined)
 	['minCorrelation','minCorrelationIncrease','minRms',
-		'normalize','stopAfterDetection',
+		'normalize','stopAfterDetection','interpolateFrequency',
 		'onDebug','onDetect','onDestroy'
 	].forEach(function(option){
 		if(typeof options[option] !== 'undefined') {
@@ -152,12 +157,14 @@ PitchDetector.prototype.setOptions = function(options){
 		}
 	});
 
-	// Warn if you're setting Constructor-only options!
-	['input','output','length','context'].forEach(function(option){
-		if(typeof options[option] !== 'undefined'){
-			console.warn('PitchDetector: Cannot set option "'+option+'"" after construction!');
-		}
-	});
+	if(ignoreConstructorOnlyProperties !== true){
+		// Warn if you're setting Constructor-only options!
+		['input','output','length','context'].forEach(function(option){
+			if(typeof options[option] !== 'undefined'){
+				console.warn('PitchDetector: Cannot set option "'+option+'"" after construction!');
+			}
+		});
+	}
 
 	// Set frequency domain (i.e. min-max period to detect frequencies on)
 	var minPeriod = options.minPeriod || this.options.minPeriod || 2;
@@ -216,6 +223,7 @@ PitchDetector.prototype.setOptions = function(options){
 			worst_period: 0,
 			best_correlation: 0.0,
 			worst_correlation: 0.0,
+			time: 0.0,
 			rms: 0.0,
 		};
 	}
@@ -229,11 +237,22 @@ PitchDetector.prototype.setOptions = function(options){
 PitchDetector.prototype.start = function(){
 	// Wait until input is defined (when waiting for microphone)
 	if(!this.analyser && this.input){
-		this.analyser = this.context.createAnalyser();
-		this.analyser.fftSize = this.buffer.length * 2;
+		//this.analyser = this.context.createAnalyser();
+		//this.analyser.fftSize = this.buffer.length * 2;
+		
+		this.analyser = this.context.createScriptProcessor(this.options.length);
+		this.analyser.onaudioprocess = this.autoCorrelate.bind(this);
 		this.input.connect(this.analyser);
 		if(this.output){
 			this.analyser.connect(this.output);
+		} else {
+			// webkit but, it requires an output....
+			// var dummyOutput = this.context.createGain();
+			// dummyOutput.gain.value= 0;
+			// dummyOutput.connect(this.context.destination);
+			var dummyOutput = this.context.createAnalyser();
+			dummyOutput.fftSize = 32;
+			this.analyser.connect(dummyOutput);
 		}
 	}
 	if(!this.started){
@@ -241,18 +260,11 @@ PitchDetector.prototype.start = function(){
 		requestAnimationFrame(this.update);
 	}
 };
-
-PitchDetector.prototype.update = function(){
-	if(this.analyser) {
-		this.analyser.getFloatTimeDomainData(this.buffer);
-		var detectedPitch = this.autoCorrelate();
-		if(detectedPitch){
-			if(this.options.stopAfterDetection === true){
-				this.started = false;
-			}
-			if(this.options.onDetect){
-				this.options.onDetect(this.stats,this);
-			}
+PitchDetector.prototype.update = function(event){
+	if(this.lastOnDetect !== this.stats.time){
+		this.lastOnDetect = this.stats.time;
+		if(this.options.onDetect){
+			this.options.onDetect(this.stats,this);
 		}
 	}
 	if(this.options.onDebug){
@@ -281,11 +293,11 @@ PitchDetector.prototype.destroy = function(){
 		} catch(e){}
 	}
 	if(this.input) this.input.disconnect();
+	if(this.analyser) this.analyser.disconnect();
 	this.input = null;
 	this.analyser = null;
 	this.context = null;
 	this.buffer = null;
-	this.correlations = null;
 };
 
 /**
@@ -323,7 +335,9 @@ PitchDetector.prototype.getDetune = function(){
 /**
  * AutoCorrelate algorithm
  */
-PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
+PitchDetector.prototype.autoCorrelate = function AutoCorrelate(event){
+	if(!this.started) return;
+
 	// Keep track of best period/correlation
 	var best_period = 0;
 	var best_correlation = 0;
@@ -349,12 +363,15 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
 
 	// early stop algorithm
 	var found_pitch = !this.options.minCorrelationIncrease && !this.options.minCorrelation;
-	
+	var find_local_maximum = this.options.minCorrelationIncrease;
+
 	// Constants
+	this.buffer = event.inputBuffer.getChannelData(0);
 	var NORMALIZE = 1;
 	var BUFFER_LENGTH = this.buffer.length;
 	var PERIOD_LENGTH = this.periods.length;
 	var MAX_SAMPLES = this.MAX_SAMPLES;
+
 
 	// Check if there is enough signal
 	for (i=0; i< BUFFER_LENGTH;i++) {
@@ -454,7 +471,7 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
  	       worst_period = period;
 
  	    // we're ascending, and found a new high!
-		} else if (correlation > best_correlation){
+		} else if(find_local_maximum || correlation > best_correlation){
 			best_correlation = correlation;
 			best_period = period;
 		}
@@ -474,6 +491,7 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
 	}
 
 	if (best_correlation > 0.01 && found_pitch) {
+		this.stats.detected = true;
 		this.stats.best_period = best_period;
 		this.stats.worst_period = worst_period;
 		this.stats.best_correlation = best_correlation;
@@ -481,9 +499,8 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
 		this.stats.time = this.context.currentTime;
 		this.stats.rms = rms;
 
-		// console.log("f = " + this.sampleRate/best_period + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
 		var shift = 0;
-		if(this.correlations[best_period+1] && this.correlations[best_period-1]){
+		if(this.options.interpolateFrequency && i >= 3 && period >= best_period + 1 && this.correlations[best_period+1] && this.correlations[best_period-1]){
 			// Now we need to tweak the period - by interpolating between the values to the left and right of the
 			// best period, and shifting it a bit.  This is complex, and HACKY in this code (happy to take PRs!) -
 			// we need to do a curve fit on this.correlations[] around best_period in order to better determine precise
@@ -500,6 +517,9 @@ PitchDetector.prototype.autoCorrelate = function AutoCorrelate(){
 		if(this.options.onDebug){
 			this.debug.detected = true;
 			this.debug.frequency = this.stats.frequency;
+		}
+		if(this.options.stopAfterDetection){
+			this.started = false;
 		}
 		return true;
 	} else {		

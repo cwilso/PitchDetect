@@ -1,24 +1,33 @@
 # Pitch Detector
 
-> I whipped this app up to start experimenting with pitch detection, and also to test live audio input.  It used to perform a naive (zero-crossing based) pitch detection algorithm; now it uses a naively-implemented auto-correlation algorithm in realtime, so it should work well with most monophonic waveforms (although strong harmonics will throw it off a bit).  It works well with whistling (which has a clear, simple waveform); it also works pretty well to tune my guitar.
-> 
-> Live instance hosted on https://webaudiodemos.appspot.com/pitchdetect/.
-> 
-> Check it out, feel free to fork, submit pull requests, etc.  MIT-Licensed - party on.
-> 
-> -Chris
-
-I've extracted the core logic into a standalone module.
-
-The GUI is now seperate (see `/example/gui.js`). I've also enhanced the display to visualize the detection algorithm.
+Based on Chris Wilson's work, an improved pitch detector. The Pitch Detector calculates auto-correlation score for a range of frequencies.
 
 See demo at http://lab.madebymark.nl/pitch-detector/example/.
 
-- Mark
+## Examples
+
+The **Y-Axis** is the auto-correlation score. The **X-Axis** is the frequency range, from high (22 
+Khz) to low (83 Hz).
+
+Detect best auto-correlation of all frequencies:
+
+![Auto-Correlation scores](examples/example1.png)
+
+Detect the first peak auto-correlation, which is the highest frequency. Auto-correlation also detects lower octaves (and harmonies) of a frequency. 
+
+![Auto-Correlation scores, detect the first peak correlation](examples/example2.png)
+
+Detect a sudden increase in correlation: 
+
+![Auto-Correlation scores, detect the first increase in correlation](examples/example3.png)
 
 ## Usage
 
-Drop `pitchdetector.js` in your page, or use CommonJS modules (i.e. browserify, webpack) to require the file.
+* `pitchdetector.js` contains the PitchDetector (logic only)
+* `pitchdetectorcanvas.js` allows you to visualize pitch detection on a canvas.
+* `example/gui.js` is a playground to test and tweak the pitch detector.
+
+Drop `pitchdetector.js` in your page, or require the CommonJS module using Webpack or Browserify.
 
 First, create a PitchDetector:
 ```javascript
@@ -124,7 +133,7 @@ detector.stats = {
 * `minCorrelation` is the most reliable
 * `minCorreationIncrease` can sometimes give better results.
 
-### Use `RMS` or `Peak` normalization with `minCorrelationIncrease`
+### Use RMS or Peak normalization with minCorrelationIncrease
 
 The increase in correlation strongly depends on signal volume. Therefore, normalizing using `RMS` or `Peak` can make `minCorrelationIncrease` work much better.
 
@@ -132,4 +141,33 @@ The increase in correlation strongly depends on signal volume. Therefore, normal
 
 If you know what you're looking or, set a frequency range. 
 
-**Warning:** `minCorrelationIncrease` needs a bigger frequency range, because needs it detects target frequency when higher frequencies have a very **low correlation**! (Therefore the correlation increase from "bad frequency" to "target frequency" is high).
+**Warning:** `minCorrelationIncrease` needs a large frequency range to detect a difference. The frequency range must be large enough to include both a low and high auto-correlation.
+
+## Changelog
+
+### 0.2.0 (26/02/2015)
+
+* Used ScriptProcessingNode for faster analysis. Callbacks are still tied to the requestAnimationFrame.
+* Extracted the Canvas draw function into a seperate file.
+
+### 0.1.0 (25/02/2015)
+
+* Extract core logic (pitchdetector.js) from the GUI code (examples/gui.js)
+* Add a new heuristic: detect a sudden increase in auto-correlation (when approaching the target frequency).
+* Added signal normalization (peak or rms)
+* Updated canvas visualization to draw correlation scores for every frequency.
+
+## Contribute
+
+I first want to check if the original author, Chris Wilson, is willing to pull my fork. So please check out the original version at https://github.com/cwilso/PitchDetect.
+
+## Credits
+
+Original code from [Chris Wilson](https://github.com/cwilso), improvements (see changelog) by [Mark Marijnissen](https://github.com/markmarijnissen)
+
+## Contact
+-   @markmarijnissen
+-   http://www.madebymark.nl
+-   info@madebymark.nl
+
+© 2015 - Mark Marijnissen

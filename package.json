@@ -1,6 +1,6 @@
 {
   "name": "pitch-detector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Detect pitch with the auto-correlation algorithm using the Web Audio API",
   "main": "pitchdetector.js",
   "directories": {
