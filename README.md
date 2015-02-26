@@ -11,15 +11,15 @@ Khz) to low (83 Hz).
 
 Detect best auto-correlation of all frequencies:
 
-![Auto-Correlation scores](examples/example1.png)
+![Auto-Correlation scores](example/example1.png)
 
 Detect the first peak auto-correlation, which is the highest frequency. Auto-correlation also detects lower octaves (and harmonies) of a frequency. 
 
-![Auto-Correlation scores, detect the first peak correlation](examples/example2.png)
+![Auto-Correlation scores, detect the first peak correlation](example/example2.png)
 
 Detect a sudden increase in correlation: 
 
-![Auto-Correlation scores, detect the first increase in correlation](examples/example3.png)
+![Auto-Correlation scores, detect the first increase in correlation](example/example3.png)
 
 ## Usage
 
@@ -152,7 +152,7 @@ If you know what you're looking or, set a frequency range.
 
 ### 0.1.0 (25/02/2015)
 
-* Extract core logic (pitchdetector.js) from the GUI code (examples/gui.js)
+* Extract core logic (pitchdetector.js) from the GUI code (example/gui.js)
 * Add a new heuristic: detect a sudden increase in auto-correlation (when approaching the target frequency).
 * Added signal normalization (peak or rms)
 * Updated canvas visualization to draw correlation scores for every frequency.
