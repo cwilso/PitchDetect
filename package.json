@@ -1,0 +1,28 @@
+{
+  "name": "pitch-detector",
+  "version": "0.2.0",
+  "description": "Detect pitch with the auto-correlation algorithm using the Web Audio API",
+  "main": "pitchdetector.js",
+  "directories": {
+    "example": "example"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markmarijnissen/PitchDetect.git"
+  },
+  "keywords": [
+    "pitch",
+    "web",
+    "audio",
+    "auto-correlation"
+  ],
+  "authors": ["Chris Wilson","Mark Marijnissen"],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/markmarijnissen/PitchDetect/issues"
+  },
+  "homepage": "https://github.com/markmarijnissen/PitchDetect"
+}
