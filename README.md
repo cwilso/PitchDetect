@@ -6,8 +6,10 @@ See demo at http://lab.madebymark.nl/pitch-detector/example/.
 
 ## Examples
 
-The **Y-Axis** is the auto-correlation score. The **X-Axis** is the frequency range, from high (22 
+* The **Y-Axis** is the auto-correlation score. 
+* The **X-Axis** is the frequency range, from high (22 
 Khz) to low (83 Hz).
+* The **Red bar** is the signal strength (RMS). The little dark red line is the minimal RMS.
 
 Detect best auto-correlation of all frequencies:
 
@@ -151,6 +153,12 @@ The increase in correlation strongly depends on signal volume. Therefore, normal
 If you know what you're looking or, set a frequency range. 
 
 **Warning:** `minCorrelationIncrease` needs a large frequency range to detect a difference. The frequency range must be large enough to include both a low and high auto-correlation.
+
+## Ideas to improve algorithm:
+
+* Draw an "optimal" auto-correlation shape, and calculate mean squared error (MSE) from measured auto-correlation score. When MSE is low enough, a pitch is detected. (or a combination of pitches!)
+* Implement DTMF demodulation as example
+* Learn a shape by recording auto-correlation scores of the perfect example. The resulting shape is the average of all recordes samples. Calculate standard deviation to see if the signal can be detected reliably.
 
 ## Changelog
 
