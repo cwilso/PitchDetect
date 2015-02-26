@@ -13,7 +13,7 @@ Detect best auto-correlation of all frequencies:
 
 ![Auto-Correlation scores](example/example1.png)
 
-Detect the first peak auto-correlation, which is the highest frequency. Auto-correlation also detects lower octaves (and harmonies) of a frequency. 
+Detect the first peak auto-correlation, which is the highest frequency. Auto-correlation often detects lower octaves (and harmonies), so we can just stop after the first peak. 
 
 ![Auto-Correlation scores, detect the first peak correlation](example/example2.png)
 
