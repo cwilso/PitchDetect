@@ -256,6 +256,7 @@ function autoCorrelateFloat( buf, sampleRate ) {
 */
 
 var MIN_SAMPLES = 0;  // will be initialized when AudioContext is created.
+var GOOD_ENOUGH_CORRELATION = 0.9; // this is the "bar" for how close a correlation needs to be
 
 function autoCorrelate( buf, sampleRate ) {
 	var SIZE = buf.length;
@@ -283,7 +284,7 @@ function autoCorrelate( buf, sampleRate ) {
 		}
 		correlation = 1 - (correlation/MAX_SAMPLES);
 		correlations[offset] = correlation; // store it, for the tweaking we need to do below.
-		if ((correlation>0.9) && (correlation > lastCorrelation)) {
+		if ((correlation>GOOD_ENOUGH_CORRELATION) && (correlation > lastCorrelation)) {
 			foundGoodCorrelation = true;
 			if (correlation > best_correlation) {
 				best_correlation = correlation;
