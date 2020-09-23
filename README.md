@@ -51,7 +51,7 @@ var detector = new PitchDetector({
 	// We can interpolate (very hacky) by looking at neighbours of the best 
 	// auto-correlation period and shifting the frequency a bit towards the
 	// highest neighbour.
-	interpolateFrequency: true // default: true
+	interpolateFrequency: true, // default: true
 
 	// Callback on pitch detection (Optional)
 	onDetect: function(stats, pitchDetector) { 
@@ -81,10 +81,10 @@ var detector = new PitchDetector({
 	// at the same time!
  
 	// Signal Normalization (Optional)
-	normalize: "rms" // or "peak". default: undefined
+	normalize: "rms", // or "peak". default: undefined
 
 	// Only detect pitch once: (Optional)
-	stopAfterDetection: false
+	stopAfterDetection: false,
 
 	// Buffer length (Optional)
 	length: 1024, // default 1024
@@ -97,10 +97,10 @@ var detector = new PitchDetector({
 	maxFrequency: 20000,
 
 	minPeriod: 2,  // by period (i.e. actual distance of calculation in audio buffer)
-	maxPeriod: 512 // --> convert to frequency: frequency = sampleRate / period
+	maxPeriod: 512, // --> convert to frequency: frequency = sampleRate / period
 
 	// Start right away
-	start: true // default: false
+	start: true, // default: false
 })
 ```
 

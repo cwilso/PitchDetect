@@ -59,7 +59,6 @@ function getLiveInput(context,callback){
 	                    "googNoiseSuppression": "false",
 	                    "googHighpassFilter": "false"
 	                },
-	                "optional": []
 	            },
 	        }, function(stream){
 	        	var liveInputNode = context.createMediaStreamSource(stream);
