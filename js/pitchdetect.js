@@ -1,3 +1,10 @@
+/*The following code builds upon Chris Wilson's 
+pitch detector : https://github.com/cwilso/PitchDetect.
+Blake Gilmore restructured and added to Chris' code to 
+create a pitch matcher, which allows you to try to match
+ the pitch of your favorite song. See code for the matcher below autoCorrelate().
+*/
+
 /*
 The MIT License (MIT)
 
@@ -12,14 +19,6 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 */
 
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -39,11 +38,23 @@ var detectorElem,
 	detuneElem,
 	detuneAmount;
 
-window.onload = function() {
+var notes=[],
+displayed=[],
+targetNotes=0,
+missedNotes=[],
+accuracy=0,
+userCount=0,
+listening=true,
+targetNoteNum=168,
+pathToSong="../static/new_recording_2.ogg";
+notesRight=0;
+
+// loads the song when a button is clicked 
+function loadSong() {
 	audioContext = new AudioContext();
 	MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));	// corresponds to a 5kHz signal
 	var request = new XMLHttpRequest();
-	request.open("GET", "../sounds/whistling3.ogg", true);
+	request.open("GET", pathToSong, true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
@@ -88,9 +99,7 @@ window.onload = function() {
 	  	return false;
 	};
 
-
-
-}
+} // close the onload function for the song
 
 function error() {
     alert('Stream generation failed.');
@@ -119,6 +128,7 @@ function gotStream(stream) {
     updatePitch();
 }
 
+// mostly for testing purposes-plays a single tone
 function toggleOscillator() {
     if (isPlaying) {
         //stop playing and return
@@ -145,7 +155,12 @@ function toggleOscillator() {
     return "stop";
 }
 
+// called when it's the user's turn to sing
+// calls updatePitch() continually to result in a stream of notes
 function toggleLiveInput() {
+    userCount+=1;
+    notes=[];
+    listening=true;
     if (isPlaying) {
         //stop playing and return
         sourceNode.stop( 0 );
@@ -170,6 +185,8 @@ function toggleLiveInput() {
         }, gotStream);
 }
 
+// called to play target audio for matching
+// calls updatePitch() continually to result in a stream of notes
 function togglePlayback() {
     if (isPlaying) {
         //stop playing and return
@@ -184,8 +201,8 @@ function togglePlayback() {
     }
 
     sourceNode = audioContext.createBufferSource();
-    sourceNode.buffer = theBuffer;
-    sourceNode.loop = true;
+    sourceNode.buffer= theBuffer;
+    sourceNode.loop = false;
 
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
@@ -195,7 +212,6 @@ function togglePlayback() {
     isPlaying = true;
     isLiveInput = false;
     updatePitch();
-
     return "stop";
 }
 
@@ -204,8 +220,10 @@ var tracks = null;
 var buflen = 2048;
 var buf = new Float32Array( buflen );
 
+// the notes
 var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
+// start of the math to calculate the notes
 function noteFromPitch( frequency ) {
 	var noteNum = 12 * (Math.log( frequency / 440 )/Math.log(2) );
 	return Math.round( noteNum ) + 69;
@@ -224,6 +242,7 @@ function centsOffFromPitch( frequency, note ) {
 var MIN_SAMPLES = 0;  // will be initialized when AudioContext is created.
 var GOOD_ENOUGH_CORRELATION = 0.9; // this is the "bar" for how close a correlation needs to be
 
+// yields a number 'ac' that's used to get the note
 function autoCorrelate( buf, sampleRate ) {
 	var SIZE = buf.length;
 	var MAX_SAMPLES = Math.floor(SIZE/2);
@@ -325,11 +344,113 @@ function autoCorrelate( buf, sampleRate ) {
 	return sampleRate/T0;
 }
 
+function tunerShow(){
+    $("#level_buttons").css("display","none");
+    $("#tuner_stuff").css("display", "block");
+}
+
+// clear the page and set up the tuner when you click on freeplay
+// start showing notes
+$(".freeplay-button").on('click',function(){
+    targetNoteNum=1000;
+    doEasy();
+    $("#listen-button").css("display","none");
+    $("#myturn").css("display","none");
+    $("#return-button").css("display", "block");
+    toggleLiveInput();
+});
+
+
+// when you click on easy, call the function to make tuner_stuff show
+$(".easy-button").on('click', function(){ 
+    doEasy();
+});
+
+// when you click on challenge, call the function to make tuner_stuff show
+$('.challenge-button').on('click', function(){
+    doChallenge();
+    tunerShow();
+});
+
+// change settings for challenge mode
+function doChallenge(){
+    targetNoteNum=290;
+    pathToSong="../static/mariah_sample.ogg";
+    loadSong();
+}
+
+// load song for easy mode
+function doEasy(){
+    loadSong();
+    tunerShow();
+}
+
+// calculate the user's accuracy by comparing the 
+// array of target notes to the array of notes the user sang 
+function calculateAccuracy(){
+    for (i=0;i<notes.length;i++){
+        if(notes[i] !== targetNotes[i]){
+            missedNotes.push(notes[i]);
+        }
+    }
+    accuracy = ((1-(missedNotes.length/targetNotes.length))*100)+20;
+    if (accuracy !== 0){
+        console.log(accuracy);
+        if (accuracy > 75){
+            notesRight="3/3";
+        }
+        else if (55 < accuracy && accuracy < 75){
+            notesRight="2/3";
+        }
+        else if (35 < accuracy && accuracy < 55) {
+            notesRight="1/2";
+        } 
+        else if (15 < accuracy && accuracy < 35) {
+            notesRight="1/3";
+        } 
+        else {
+            notesRight="0";
+        }
+            $("#index-alert").prepend("you got about "+notesRight+" of the notes.");
+            $(".accuracy").css("display", "block");
+    }
+    console.log(accuracy+"%");
+    listening=false;
+    userCount=0;
+}
+
+/*
+if the length of the array of notes is longer than the specified value, 
+calculate the accuracy (if the user has sang their notes)
+OR
+save the array as the target array for calculation 
+after the user has sang their notes as well
+*/
+function checkNote(noteString){
+    if (notes.length<targetNoteNum){
+        // 
+        notes.push(noteString);
+        // if the two or more of the previous items in notes were noteString
+        if (notes[notes.length-2] === noteString){
+            displayed.push(noteString);
+            noteElem.innerHTML = noteString;
+         //then set the innerHTML to noteString
+            } 
+    } else {
+        listening=false;
+        if (userCount>0 && targetNotes!=0){
+            calculateAccuracy();
+        } else {
+            targetNotes=notes;
+        }
+    }
+}
+
+// uses the number calculated above to yield a note from noteStrings
 function updatePitch( time ) {
 	var cycles = new Array;
 	analyser.getFloatTimeDomainData( buf );
-	var ac = autoCorrelate( buf, audioContext.sampleRate );
-	// TODO: Paint confidence meter on canvasElem here.
+	var ac = autoCorrelate( buf, audioContext.sampleRate ); 
 
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
 		waveCanvas.clearRect(0,0,512,256);
@@ -355,18 +476,22 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 	}
 
+    
  	if (ac == -1) {
- 		detectorElem.className = "vague";
+ 		detectorElem.className = "container vague";
 	 	pitchElem.innerText = "--";
 		noteElem.innerText = "-";
 		detuneElem.className = "";
 		detuneAmount.innerText = "--";
  	} else {
-	 	detectorElem.className = "confident";
+	 	detectorElem.className = "container confident";
 	 	pitch = ac;
 	 	pitchElem.innerText = Math.round( pitch ) ;
 	 	var note =  noteFromPitch( pitch );
-		noteElem.innerHTML = noteStrings[note%12];
+        var noteString = noteStrings[note%12];
+        if (listening === true){
+            checkNote(noteString);
+        }
 		var detune = centsOffFromPitch( pitch, note );
 		if (detune == 0 ) {
 			detuneElem.className = "";
@@ -384,3 +509,4 @@ function updatePitch( time ) {
 		window.requestAnimationFrame = window.webkitRequestAnimationFrame;
 	rafID = window.requestAnimationFrame( updatePitch );
 }
+
