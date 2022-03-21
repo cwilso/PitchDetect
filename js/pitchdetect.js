@@ -219,110 +219,83 @@ function centsOffFromPitch( frequency, note ) {
 	return Math.floor( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
 }
 
-// this is the previously used pitch detection algorithm.
-/*
-var MIN_SAMPLES = 0;  // will be initialized when AudioContext is created.
-var GOOD_ENOUGH_CORRELATION = 0.9; // this is the "bar" for how close a correlation needs to be
+function getMaxPos(c, SIZE) {
+    let d = 0;
+    while (c[d] > c[d + 1]) {
+        d++;
+    }
 
-function autoCorrelate( buf, sampleRate ) {
-	var SIZE = buf.length;
-	var MAX_SAMPLES = Math.floor(SIZE/2);
-	var best_offset = -1;
-	var best_correlation = 0;
-	var rms = 0;
-	var foundGoodCorrelation = false;
-	var correlations = new Array(MAX_SAMPLES);
-
-	for (var i=0;i<SIZE;i++) {
-		var val = buf[i];
-		rms += val*val;
-	}
-	rms = Math.sqrt(rms/SIZE);
-	if (rms<0.01) // not enough signal
-		return -1;
-
-	var lastCorrelation=1;
-	for (var offset = MIN_SAMPLES; offset < MAX_SAMPLES; offset++) {
-		var correlation = 0;
-
-		for (var i=0; i<MAX_SAMPLES; i++) {
-			correlation += Math.abs((buf[i])-(buf[i+offset]));
-		}
-		correlation = 1 - (correlation/MAX_SAMPLES);
-		correlations[offset] = correlation; // store it, for the tweaking we need to do below.
-		if ((correlation>GOOD_ENOUGH_CORRELATION) && (correlation > lastCorrelation)) {
-			foundGoodCorrelation = true;
-			if (correlation > best_correlation) {
-				best_correlation = correlation;
-				best_offset = offset;
-			}
-		} else if (foundGoodCorrelation) {
-			// short-circuit - we found a good correlation, then a bad one, so we'd just be seeing copies from here.
-			// Now we need to tweak the offset - by interpolating between the values to the left and right of the
-			// best offset, and shifting it a bit.  This is complex, and HACKY in this code (happy to take PRs!) -
-			// we need to do a curve fit on correlations[] around best_offset in order to better determine precise
-			// (anti-aliased) offset.
-
-			// we know best_offset >=1, 
-			// since foundGoodCorrelation cannot go to true until the second pass (offset=1), and 
-			// we can't drop into this clause until the following pass (else if).
-			var shift = (correlations[best_offset+1] - correlations[best_offset-1])/correlations[best_offset];  
-			return sampleRate/(best_offset+(8*shift));
-		}
-		lastCorrelation = correlation;
-	}
-	if (best_correlation > 0.01) {
-		// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
-		return sampleRate/best_offset;
-	}
-	return -1;
-//	var best_frequency = sampleRate/best_offset;
+    let maxval = -1;
+    let maxpos = -1;
+    for (let i = d; i < SIZE; i++) {
+        if (c[i] > maxval) {
+            maxval = c[i];
+            maxpos = i;
+        }
+    }
+    return maxpos;
 }
-*/
 
-function autoCorrelate( buf, sampleRate ) {
-	// Implements the ACF2+ algorithm
-	var SIZE = buf.length;
-	var rms = 0;
+function calcBufferArray(buf) {
+    let c = new Array(buf.length).fill(0);
+    for (let i = 0; i < buf.length; i++) {
+        for (let j = 0; j < buf.length - i; j++) {
+            c[i] = c[i] + buf[j] * buf[j + i];
+        }
+    }
+    return c;
+}
 
-	for (var i=0;i<SIZE;i++) {
-		var val = buf[i];
-		rms += val*val;
-	}
-	rms = Math.sqrt(rms/SIZE);
-	if (rms<0.01) // not enough signal
-		return -1;
+function notEnoughSignal(buf) {
+    let rms = 0;
+    for (let i = 0; i < buf.length; i++) {
+        rms += buf[i] * buf[i];
+    }
+    rms = Math.sqrt(rms / buf.length);
+    return rms < 0.01
+}
 
-	var r1=0, r2=SIZE-1, thres=0.2;
-	for (var i=0; i<SIZE/2; i++)
-		if (Math.abs(buf[i])<thres) { r1=i; break; }
-	for (var i=1; i<SIZE/2; i++)
-		if (Math.abs(buf[SIZE-i])<thres) { r2=SIZE-i; break; }
+function getSignalStart(buf, threshold) {
+    let start = 0;
+    for (let i = 0; i < buf.length / 2; i++) {
+        if (Math.abs(buf[i]) < threshold) {
+            start = i;
+            break;
+        }
+    }
+    return start;
+}
 
-	buf = buf.slice(r1,r2);
-	SIZE = buf.length;
+function getSignalEnd(buf, threshold) {
+    let end = buf.length - 1;
+    for (let i = 1; i < buf.length / 2; i++) {
+        if (Math.abs(buf[buf.length - i]) < threshold) {
+            end = buf.length - i;
+            break;
+        }
+    }
+    return end;
+}
 
-	var c = new Array(SIZE).fill(0);
-	for (var i=0; i<SIZE; i++)
-		for (var j=0; j<SIZE-i; j++)
-			c[i] = c[i] + buf[j]*buf[j+i];
+function getMax(buf) {
+    const correlated = calcBufferArray(buf);
+    let max = getMaxPos(correlated, buf.length);
+    const maxA = (correlated[max - 1] + correlated[max + 1] - 2 * correlated[max]) / 2;
+    const maxB = (correlated[max + 1] - correlated[max - 1]) / 2;
+    if (maxA >= 0) {
+        max = max - maxB / (2 * maxA);
+    }
+    return max;
+}
 
-	var d=0; while (c[d]>c[d+1]) d++;
-	var maxval=-1, maxpos=-1;
-	for (var i=d; i<SIZE; i++) {
-		if (c[i] > maxval) {
-			maxval = c[i];
-			maxpos = i;
-		}
-	}
-	var T0 = maxpos;
-
-	var x1=c[T0-1], x2=c[T0], x3=c[T0+1];
-	a = (x1 + x3 - 2*x2)/2;
-	b = (x3 - x1)/2;
-	if (a) T0 = T0 - b/(2*a);
-
-	return sampleRate/T0;
+// ACF2+ algorithm
+function autoCorrelate(buf, sampleRate) {
+    if (notEnoughSignal(buf)) {
+        return -1;
+    }
+    const threshold = 0.2;    
+    buf = buf.slice(getSignalStart(buf, threshold), getSignalEnd(buf, threshold));
+    return sampleRate / getMax(buf);
 }
 
 function updatePitch( time ) {
