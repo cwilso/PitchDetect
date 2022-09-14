@@ -42,15 +42,6 @@ var detectorElem,
 window.onload = function() {
 	audioContext = new AudioContext();
 	MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));	// corresponds to a 5kHz signal
-	var request = new XMLHttpRequest();
-	request.open("GET", "../sounds/whistling3.ogg", true);
-	request.responseType = "arraybuffer";
-	request.onload = function() {
-	  audioContext.decodeAudioData( request.response, function(buffer) { 
-	    	theBuffer = buffer;
-		} );
-	}
-	request.send();
 
 	detectorElem = document.getElementById( "detector" );
 	canvasElem = document.getElementById( "output" );
@@ -87,36 +78,49 @@ window.onload = function() {
 	  	reader.readAsArrayBuffer(e.dataTransfer.files[0]);
 	  	return false;
 	};
-
-
+	
+	fetch('whistling3.ogg')
+		.then((response) => {
+			if (!response.ok) {
+				throw new Error(`HTTP error, status = ${response.status}`);
+			}
+			return response.arrayBuffer();
+		}).then((buffer) => audioContext.decodeAudioData(buffer)).then((decodedData) => {
+			theBuffer = decodedData;
+		});
 
 }
 
-function error() {
-    alert('Stream generation failed.');
-}
+function startPitchDetect() {	
+    // grab an audio context
+    audioContext = new AudioContext();
 
-function getUserMedia(dictionary, callback) {
-    try {
-        navigator.getUserMedia = 
-        	navigator.getUserMedia ||
-        	navigator.webkitGetUserMedia ||
-        	navigator.mozGetUserMedia;
-        navigator.getUserMedia(dictionary, callback, error);
-    } catch (e) {
-        alert('getUserMedia threw exception :' + e);
-    }
-}
+    // Attempt to get audio input
+    navigator.mediaDevices.getUserMedia(
+    {
+        "audio": {
+            "mandatory": {
+                "googEchoCancellation": "false",
+                "googAutoGainControl": "false",
+                "googNoiseSuppression": "false",
+                "googHighpassFilter": "false"
+            },
+            "optional": []
+        },
+    }).then((stream) => {
+        // Create an AudioNode from the stream.
+        mediaStreamSource = audioContext.createMediaStreamSource(stream);
 
-function gotStream(stream) {
-    // Create an AudioNode from the stream.
-    mediaStreamSource = audioContext.createMediaStreamSource(stream);
-
-    // Connect it to the destination.
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    mediaStreamSource.connect( analyser );
-    updatePitch();
+	    // Connect it to the destination.
+	    analyser = audioContext.createAnalyser();
+	    analyser.fftSize = 2048;
+	    mediaStreamSource.connect( analyser );
+	    updatePitch();
+    }).catch((err) => {
+        // always check for errors at the end.
+        console.error(`${err.name}: ${err.message}`);
+        alert('Stream generation failed.');
+    });
 }
 
 function toggleOscillator() {
